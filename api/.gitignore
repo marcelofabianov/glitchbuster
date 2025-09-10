@@ -1,0 +1,58 @@
+# Binaries for programs and scripts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.sh
+*.bat
+*.cmd
+
+# Temporary files
+.DS_Store
+*.swp
+*.swop
+*.swo
+
+# Log Caches Debug
+*.log
+*.cache
+*.tmp
+*.swp
+*.swo
+*.swop
+*.tmp
+*.cfg
+/tmp/
+__debug*
+
+# Database files
+*.db
+*.sqlite
+
+# Certificate files
+*.cer
+*.crt
+*.pem
+*.p12
+*.pfx
+*.pass
+
+# Environment variables file
+.env*
+*.env*
+!.env.example
+
+# Test binary, built with `go test -c`
+/bin/
+/build/
+*.test
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# IDE configuration files
+.idea/
+
