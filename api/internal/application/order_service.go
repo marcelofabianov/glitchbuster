@@ -64,7 +64,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, input *port.OrderService
 		CreatedBy:   input.CreatedBy,
 	}
 
-	order, err := domain.NewOrder(data)
+	newOrder, err := domain.NewOrder(data)
 	if err != nil {
 		return nil, fault.Wrap(err,
 			"failed to create order domain entity",
@@ -72,7 +72,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, input *port.OrderService
 		)
 	}
 
-	if err := s.repo.Create(ctx, order); err != nil {
+	if err := s.repo.Create(ctx, newOrder); err != nil {
 		return nil, fault.Wrap(err,
 			"failed to create order",
 			fault.WithCode(fault.Internal),
@@ -80,7 +80,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, input *port.OrderService
 	}
 
 	return &port.OrderServiceOutput{
-		OrderID: wisp.NewNullableUUID(order.ID),
+		OrderID: wisp.NewNullableUUID(newOrder.ID),
 		Message: "Order created successfully",
 		Status:  true,
 	}, nil
