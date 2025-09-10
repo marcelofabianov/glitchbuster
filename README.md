@@ -1,48 +1,51 @@
-# Estudo de Resiliencia
+# GlitchBuster: Order API
 
-## Atores
+## Visão Geral do Projeto
 
-API (Produtor de Eventos): Este é o ponto de entrada. Ele recebe a requisição para criar a Order. Sua principal responsabilidade é validar a requisição, gerar o evento, persistir esse evento no EventStoreDB e, só então, publicar a mensagem no RabbitMQ. A persistência no Event Store antes de publicar na fila é crucial para a durabilidade.
+O GlitchBuster é um projeto de estudo focado na construção de sistemas distribuídos e resilientes. A Order API é o primeiro microsserviço deste ecossistema, responsável por gerenciar o ciclo de vida de pedidos. Sua arquitetura é baseada em princípios como Domain-Driven Design (DDD), Event Sourcing, Arquitetura Hexagonal (Ports & Adapters) e Saga Pattern (Orquestração).
 
-EventStoreDB: Este é o banco de dados de eventos, sua fonte da verdade. A sua lista está perfeita. Ele armazena os eventos de forma imutável e ordenada. O papel dele é garantir que, em caso de falha de qualquer outro componente, o estado do sistema possa ser reconstruído a qualquer momento.
+O objetivo principal é demonstrar como padrões de resiliência, como Circuit Breaker, Retry Pattern e Dead Letter Queue (DLQ), se combinam para garantir a consistência e a robustez do sistema, mesmo em face de falhas em serviços externos.
 
-RabbitMQ (Broker de Eventos): Perfeito. É o seu broker de mensagens. Ele atua como um sistema de filas, desacoplando o produtor (a API) do consumidor (o Worker). Sua principal função é garantir que a mensagem chegue ao Worker de forma assíncrona. Ele também gerencia a DLQ para onde as mensagens que falharam serão movidas.
+## Arquitetura e Padrões de Design
 
-Worker (Consumidor da Fila): Exatamente. O Worker é o seu processador de lógica de negócio. Ele consome a mensagem do RabbitMQ e executa as ações necessárias, como a validação de anti-fraude que simulamos. Este é o componente onde os padrões de Retry, Backoff e Circuit Breaker são implementados para lidar com a falha do serviço externo.
+**Fluxo de Eventos (Event-Driven Architecture)**
 
-Serviço Externo (Anti-Fraude, etc.): Este é o ator que o seu Worker consome. Ele pode ser um serviço próprio ou de terceiros. Sua instabilidade é o motivo da existência da maioria dos padrões de resiliência que aplicamos.
+1. Criação da Ordem: A API recebe uma requisição para criar uma nova ordem.
+2. Persistência e Publicação: A API valida a requisição, persiste o evento OrderCreated no EventStoreDB (nossa fonte da verdade) e, em seguida, publica este evento no RabbitMQ.
+3. Início do Saga: Um serviço Orquestrador consome o evento OrderCreated do RabbitMQ e inicia uma Saga.
+4. Comandos e Eventos: O Orquestrador envia comandos para os serviços participantes (ex: serviço de anti-fraude), que, após executarem sua lógica, publicam eventos de resposta.
 
-Banco de Dados PostgreSQL (Projeção/Estado Final): Este é um ponto de refinamento importante na sua lista. O PostgreSQL, neste cenário de Event Sourcing, não armazena registros do processamento da forma tradicional. Em vez disso, ele é uma projeção (ou banco de dados de leitura). Os dados no PostgreSQL são gerados a partir da leitura dos eventos do EventStoreDB, permitindo consultas rápidas para a sua aplicação, como "me mostre o estado atual do pedido". O EventStoreDB é a fonte da verdade; o PostgreSQL é apenas uma visão otimizada para leitura.
+**Padrões de Resiliência em Ação**
 
-### Fluxo de Eventos e Padrões em Ação
-Vamos seguir o caminho de um evento, como OrderCreated, através do sistema.
+- Circuit Breaker: Protege o Worker de continuar a se comunicar com serviços externos que estão com falha ou alta latência, evitando que os recursos do sistema sejam esgotados.
 
-1. Geração e Persistência do Evento (Durabilidade e Ordem)
-Um Produtor de Eventos (seu serviço de e-commerce, por exemplo) recebe um pedido e antes de fazer qualquer outra coisa, persiste o evento OrderCreated no Event Store.
+- Retry Pattern com Backoff: O Worker tenta novamente as operações que falharam, mas de forma inteligente, com um intervalo crescente e aleatório entre as tentativas, para não sobrecarregar o serviço externo.
 
-Ação do Event Store: Esta é a sua base confiável e ordenada. O Event Store garante que o evento seja gravado de forma atômica e imutável. Isso é a sua fonte única de verdade. Se algo der errado depois, você sempre pode reconstruir o estado a partir daqui.
+- Dead Letter Queue (DLQ): Caso o Worker falhe em processar uma mensagem após todas as tentativas de Retry esgotarem, a mensagem é movida para uma DLQ, garantindo que não haja perda de dados e permitindo uma análise posterior.
 
-Após a persistência bem-sucedida, o produtor publica o evento em uma fila principal do RabbitMQ.
+**Estrutura de Diretórios (Clean Architecture)**
+A estrutura do projeto segue a Arquitetura Limpa, desacoplando a lógica de negócio (domínio) da infraestrutura (banco de dados, frameworks, etc.).
 
-2. Processamento Assíncrono (Desacoplamento)
-O Worker (o nosso cliente com o pool de workers) consome a mensagem da fila principal do RabbitMQ.
+```sh
+.
+├── cmd/order-api          # Ponto de entrada da aplicação
+├── internal/application   # Serviços de aplicação e lógica de negócio
+├── internal/domain        # Modelos de domínio e interfaces (Ports)
+├── internal/http          # Handlers HTTP
+└── pkg                    # Pacotes compartilhados (config, modelos, etc.)
+```
 
-Ação do Worker: O worker agora tem a tarefa de processar a ordem, o que envolve comunicar com o Serviço Externo de anti-fraude.
+### Como Executar
 
-3. Resiliência em Ação (Retry e Circuit Breaker)
-O worker tenta se comunicar com o serviço de anti-fraude.
+**Pré-requisitos**
+- Go 1.25+
+- Docker
 
-Cenário de Sucesso: Se o serviço externo responder com 200 OK, a tarefa é concluída. O worker envia um "ack" (acknowlegment) para o RabbitMQ, removendo a mensagem da fila.
+**Configuração**
+Crie o arquivo .env na raiz do projeto com as configurações essenciais.
 
-Cenário de Falha Transitória: Se o serviço externo falhar (ex: 500 Internal Server Error ou um timeout de rede), a lógica do Retry Pattern com Backoff entra em ação. O worker tenta novamente a requisição (por exemplo, 3 vezes), esperando um tempo maior a cada nova tentativa.
+Construa e execute os contêineres Docker para os serviços externos necessários (EventStoreDB, RabbitMQ, etc.).
 
-Cenário de Falha Sustentada: Se, após as 3 tentativas, a requisição ainda falhar, o worker conclui que a falha é permanente. Ele reporta esta falha final ao Circuit Breaker. Ao atingir o limite configurado de falhas, o disjuntor "arma", mudando para o estado Aberto.
+## Contribuição
 
-Proteção do Sistema: Agora, qualquer novo worker que tente processar uma ordem e chame o serviço de anti-fraude será imediatamente barrado pelo Circuit Breaker. A chamada de rede nem é feita. O worker recebe o erro do disjuntor e sabe que não adianta prosseguir.
-
-4. Roteamento para a DLQ (Preservação de Dados)
-Quando uma mensagem não pode ser processada (seja por esgotar as tentativas de retry ou por ser barrada pelo disjuntor), o worker não envia o ack. O RabbitMQ percebe que a mensagem não foi processada e, após um número pré-definido de tentativas de reentrega, a move automaticamente para uma Dead Letter Queue (DLQ).
-
-Ação da DLQ: A DLQ é um local seguro para as mensagens falhas. Elas não são perdidas. Uma equipe de suporte ou um serviço de monitoramento pode inspecionar a DLQ para entender a causa da falha e decidir se a mensagem deve ser reprocessada.
-
-
+Contribuições são bem-vindas! Se você tiver alguma ideia ou encontrar um bug, sinta-se à vontade para abrir uma issue ou um pull request.
