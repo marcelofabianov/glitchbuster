@@ -55,4 +55,4 @@ go.work.sum
 
 # IDE configuration files
 .idea/
-
+.vscode/
