@@ -2,6 +2,11 @@ package domain
 
 import "github.com/marcelofabianov/wisp"
 
+type LineItem struct {
+	ProductID wisp.UUID
+	Quantity  wisp.Quantity
+}
+
 type OrderStatus string
 
 const (
@@ -13,15 +18,23 @@ const (
 	StatusFailed     OrderStatus = "FAILED"
 )
 
+type NewOrderInput struct {
+	CustomerID  wisp.UUID
+	Items       []LineItem
+	TotalAmount wisp.Money
+	CreatedBy   wisp.AuditUser
+}
+
 type Order struct {
 	ID          wisp.UUID
 	CustomerID  wisp.UUID
-	Status      OrderStatus
+	Items       []LineItem
 	TotalAmount wisp.Money
+	Status      OrderStatus
 	wisp.Audit
 }
 
-func NewOrder(customerID wisp.UUID, totalAmount wisp.Money, createdBy wisp.AuditUser) (*Order, error) {
+func NewOrder(input NewOrderInput) (*Order, error) {
 	id, err := wisp.NewUUID()
 	if err != nil {
 		return nil, err
@@ -29,9 +42,10 @@ func NewOrder(customerID wisp.UUID, totalAmount wisp.Money, createdBy wisp.Audit
 
 	return &Order{
 		ID:          id,
-		CustomerID:  customerID,
+		CustomerID:  input.CustomerID,
 		Status:      StatusPending,
-		TotalAmount: totalAmount,
-		Audit:       wisp.NewAudit(createdBy),
+		TotalAmount: input.TotalAmount,
+		Items:       input.Items,
+		Audit:       wisp.NewAudit(input.CreatedBy),
 	}, nil
 }
