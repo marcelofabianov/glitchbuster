@@ -5,7 +5,7 @@ import (
 
 	"github.com/marcelofabianov/wisp"
 
-	"github.com/marcelofabianov/glitchbuster-order-api/internal/domain"
+	"github.com/marcelofabianov/order-api/internal/domain"
 )
 
 // --- Product ---

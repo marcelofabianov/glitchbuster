@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	"github.com/marcelofabianov/glitchbuster-order-api/internal/domain"
+	"github.com/marcelofabianov/order-api/internal/domain"
 )
 
 type CreateOrderRepository interface {

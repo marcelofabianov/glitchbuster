@@ -1,4 +1,4 @@
-module github.com/marcelofabianov/glitchbuster-order-api
+module github.com/marcelofabianov/order-api
 
 go 1.25.0
 

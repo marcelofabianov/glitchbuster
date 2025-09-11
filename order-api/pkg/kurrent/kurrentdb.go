@@ -6,7 +6,7 @@ import (
 
 	"github.com/kurrent-io/KurrentDB-Client-Go/kurrentdb"
 
-	"github.com/marcelofabianov/glitchbuster-order-api/config"
+	"github.com/marcelofabianov/order-api/config"
 )
 
 type DBClient interface {

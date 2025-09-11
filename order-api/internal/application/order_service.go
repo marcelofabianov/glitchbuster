@@ -6,8 +6,8 @@ import (
 	"github.com/marcelofabianov/fault"
 	"github.com/marcelofabianov/wisp"
 
-	"github.com/marcelofabianov/glitchbuster-order-api/internal/domain"
-	"github.com/marcelofabianov/glitchbuster-order-api/internal/port"
+	"github.com/marcelofabianov/order-api/internal/domain"
+	"github.com/marcelofabianov/order-api/internal/port"
 )
 
 type OrderService struct {
