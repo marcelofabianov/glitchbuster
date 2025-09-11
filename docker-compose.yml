@@ -1,0 +1,97 @@
+name: "glitchbuster"
+
+services:
+  glitchbuster-api:
+    container_name: glitchbuster-api
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        HOST_UID: ${HOST_UID:-1000}
+        HOST_GID: ${HOST_GID:-1000}
+    env_file:
+      - .env
+    ports:
+      - "8080:${APP_API_PORT:-8080}"
+    networks:
+      - glitchbuster-network
+    working_dir: /app
+    volumes:
+      - .:/app
+    depends_on:
+      glitchbuster-db:
+        condition: service_healthy
+      glitchbuster-rabbitmq:
+        condition: service_healthy
+      glitchbuster-redis:
+        condition: service_healthy
+
+  glitchbuster-db:
+    container_name: glitchbuster-db
+    restart: always
+    image: "postgres:17-alpine"
+    ports:
+      - "5454:${APP_DB_PORT:-5432}"
+    environment:
+      POSTGRES_USER: ${APP_DB_USER:-username}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:-password}
+      POSTGRES_DB: ${APP_DB_NAME:-glitchbuster-db}
+    volumes:
+      - glitchbuster-data:/var/lib/postgresql/data:rw
+    networks:
+      - glitchbuster-network
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  glitchbuster-rabbitmq:
+    container_name: glitchbuster-rabbitmq
+    restart: always
+    image: "rabbitmq:4.1.4-management-alpine"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${APP_RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${APP_RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - glitchbuster-rabbitmq-data:/var/lib/rabbitmq:rw
+    networks:
+      - glitchbuster-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running", "-q"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  glitchbuster-redis:
+    container_name: glitchbuster-redis
+    restart: always
+    image: "redis:8.0.3-alpine"
+    ports:
+      - "6379:6379"
+    command: --requirepass ${APP_REDIS_PASSWORD:-your-strong-password}
+    volumes:
+      - glitchbuster-redis-data:/data:rw
+    networks:
+      - glitchbuster-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${APP_REDIS_PASSWORD:-your-strong-password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  glitchbuster-data:
+    driver: local
+  glitchbuster-rabbitmq-data:
+    driver: local
+  glitchbuster-redis-data:
+    driver: local
+
+networks:
+  glitchbuster-network:
+    driver: bridge
